@@ -1,4 +1,3 @@
-// if numberOfPills > 43 -- defer request
 /**
  * Lambda Function to Determine the Total # of Permutations
  * for a given number of total prescribed pills.
@@ -26,12 +25,12 @@ const Request = require('request');
 const UUID    = require('uuid/v1');
 
 // Set Defaults:
-let minPillsPerDay = 1;
-let maxPillsPerDay = 2;
+const minPillsPerDay = 1;
+const maxPillsPerDay = 2;
 
 /**
  * Lambda Entry Point
- * Calculates the total # of permutations for a client specified total number of pills. 
+ * Calculates the total # of permutations for the client specified total number of pills. 
  *
  * @param {object} event            - Data containing the client/caller information, such as querystrings, IP address, etc.
  * @param {object} context          - Object containing runtime information for this Lambda function.
@@ -51,11 +50,44 @@ exports.handler = async function(event, context, callback) {
   if (typeof event.queryStringParameters.pills !== 'number') return callback(null, prepareResponse(400, {success: false, message: 'Pills must be a valid number!'}));
   if (event.queryStringParameters.pills < 1 || event.queryStringParameters.pills > 47) return callback(null, prepareResponse(400, {success: false, message: 'Pills must be a number between 1 and !'}));
 
-  // Override min and max pillsPerDay if set: --- Can easily implement this feature in future version if we like!
-  // if (typeof event.queryStringParameters.min === 'number') minPillsPerDay = event.queryStringParameters.min;
-  // if (typeof event.queryStringParameters.max === 'number') maxPillsPerDay = event.queryStringParameters.max;
+  // Global to hold # of permutations:
+  let numberOfPermutations = 0; 
+  
+  //** Check if value exists in cache **//
+  try {
+    numberOfPermutations = await getFromCache(event.queryStringParameters.pills);
+    if (numberOfPermutations) return callback(null, prepareResponse(200, {success: true, status: 'complete', permutations: numberOfPermutations})); // Cache hit, send response.
+  } catch (e) {
+    console.log(e); // Cache check failed, program proceeds below...
+  }
 
-  let numberOfPermutations = 0;
+  //** Cache Miss :: Calculate Permutations **//
+  if (event.queryStringParameters.pills <= 43) {
+    getNumberOfPermutations(event.queryStringParameters.pills, 0); 
+    callback(null, prepareResponse(200, {success: true, status: 'complete', permutations: numberOfPermutations})); // Send the response now, but proceed with saving to cache below..
+    try {
+      const saved = await saveToCache(event.queryStringParameters.pills, numberOfPermutations);
+      if (saved) return true; // End Lambda execution now..
+    } catch (e) {
+      console.log(e); 
+      return true; // End Lambda execution now..
+    }
+  } else {
+    // Pills too large, defer the task:
+    try {
+      const taskId = await deferTask(event.queryStringParameters.pills);
+      if (taskId) return callback(null, prepareResponse(202, {
+        success : true, 
+        status  : 'deferred',
+        task    : {
+          url: process.env.deferUrl +'/' +taskId,
+          id : taskId
+        }
+      }));
+    } catch (e) {
+      return callback(e, prepareResponse(500, {success: false, error: 'Internal Error!'})); // Defer failed, error is logged, return generic response to client.
+    }
+  }
 
   /**
    * Recursively calculates the total number of permutations for a given `numberOfPills` value.    
@@ -91,7 +123,7 @@ exports.handler = async function(event, context, callback) {
       try {
         body = JSON.parse(body);
         if (body.permutations) return body.permutations;
-        else return null;
+        else return 0;
       } catch (e) {
         throw new Error('Error: Error parsing response from cache - ' +e);
       }
