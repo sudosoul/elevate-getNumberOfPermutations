@@ -1,0 +1,19 @@
+{
+  "name": "permutations-service-deferred",
+  "version": "1.0.0",
+  "description": "Deferred Permutations Service",
+  "main": "getNumberOfPermutationsDeferred.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mullinsr/elevate-getNumberOfPermutations.git"
+  },
+  "author": "Rob Mullins <rob.mullins.official@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mullinsr/elevate-getNumberOfPermutations/issues"
+  },
+  "homepage": "https://github.com/mullinsr/elevate-getNumberOfPermutations#readme"
+}

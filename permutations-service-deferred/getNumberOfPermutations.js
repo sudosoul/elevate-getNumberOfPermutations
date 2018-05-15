@@ -20,7 +20,6 @@
  */
 
 // Import Dependencies:
-const Dynamo  = require('dynamodb');
 const Request = require('request');
 const UUID    = require('uuid/v1');
 
@@ -67,10 +66,8 @@ exports.handler = async function(event, context, callback) {
     callback(null, prepareResponse(200, {success: true, status: 'complete', permutations: numberOfPermutations})); // Send the response now, but proceed with saving to cache below..
     try {
       const saved = await saveToCache(event.queryStringParameters.pills, numberOfPermutations);
-      if (saved) return true; // End Lambda execution now..
     } catch (e) {
       console.log(e); 
-      return true; // End Lambda execution now..
     }
   } else {
     // Pills too large, defer the task:
@@ -142,7 +139,7 @@ exports.handler = async function(event, context, callback) {
     Request({
       url     : process.env.cacheUrl,
       method  : 'POST',
-      body    : {pills: numberOfPills, permutations: numberOfPermutations},
+      body    : {pills: numberOfPills.toString(), permutations: numberOfPermutations.toString()}, // Even though these values are defined as Numbers in Dynamo, we have to pass them as a string in the request body for the API GW -> Dynamo proxy mapping to work.
       headers : {'Content-Type': 'application/json'}
     }, (err, res, body) => {
       if (err) throw new Error('Error: Internal Error Making POST Request to Cache Service - ' +err);
@@ -161,9 +158,9 @@ exports.handler = async function(event, context, callback) {
   async function deferTask(numberOfPills) {
     const id = UUID();
     Request({
-      url     : process.env.deferUrl,
+      url     : process.env.deferUrl +'/' +id,
       method  : 'POST',
-      body    : {id: id, pills: numberOfPills},
+      body    : {pills: numberOfPills.toString()}, // Even though these values are defined as Numbers in Dynamo, we have to pass them as a string in the request body for the API GW -> Dynamo proxy mapping to work.
       headers : {'Content-Type': 'application/json'}
     }, (err, res, body) => {
       if (err) throw new Error('Error: Internal Error Making POST Request to Defer Service - ' +err);
