@@ -35,39 +35,42 @@ exports.handler = async function(event, context, callback) {
   if (!process.env.cacheUrl) return callback('Error: The `cacheUrl` environment variable was not set');
   if (!process.env.deferUrl) return callback('Error: The `deferUrl` environment variable was not set');
 
-  //** Async Iterate through DynamoDB Events **//
-  const processed = await Promise.all(event.Records.map(async (record) => {  // This allows us to perform the below code in parallel for each iteration of Records, while waiting for each async iteration to complete before the Lambda automatically exits (due to event loop being empty).
-    // Only process INSERT events on the Dynamo Table, since new jobs are INSERT events, while updates to existing jobs are MODIFY events...
-    if (record.eventName === 'INSERT') {
-      // Async Update the task status to 'IN_PROGRESS':
-      try {
-        const updateTaskStatus = await updateTask(record.dynamodb.Keys.id.S, 'IN_PROGRESS');
-      } catch (e) {
-        console.log(e);
-      }
-      
-      // Calculate the Permutations (NOTE: This is an event blocking operation):
-      const numberOfPermutations = getNumberOfPermutations(record.dynamodb.NewImage.pills.N, 0);
-      
-      // Async Update the task status to 'COMPLETE' & insert the calculated permutations:
-      try {
-        const completeTask = await updateTask(record.dynamodb.Keys.id.S, 'COMPLETE', numberOfPermutations);
-      } catch (e) {
-        console.log(e);
-      }
-      
-      // Async Save the calculated permutations to cache:
-      try {
-        const cached = await saveToCache(record.dynamodb.NewImage.pills.N, numberOfPermutations);
-      } catch (e) {
-        console.log(e);
-      }
+  // Only process INSERT events on the Dynamo Table, since new jobs are INSERT events, while updates to existing jobs are MODIFY events...
+  if (event.Records[0].eventName === 'INSERT') {
+    // Async Update the task status to 'IN_PROGRESS':
+    let updateTaskStatus = null;
+    try {
+      const updateTaskStatus = await updateTask(event.Records[0].dynamodb.Keys.id.S, 'IN_PROGRESS');
+    } catch (e) {
+      console.log(e);
     }
-  }));
+    
+    // Calculate the Permutations (NOTE: This is an event blocking operation):
+    const numberOfPermutations = getNumberOfPermutations(parseInt(event.Records[0].dynamodb.NewImage.pills.N));
+    
+    // Async Update the task status to 'COMPLETE' & insert the calculated permutations:
+    let completeTask = null;
+    try {
+      const completeTask = await updateTask(event.Records[0].dynamodb.Keys.id.S, 'COMPLETE', numberOfPermutations);
+    } catch (e) {
+      console.log(e);
+    }
+    
+    // Async Save the calculated permutations to cache:
+    let cached = null;
+    try {
+      cached = await saveToCache(event.Records[0].dynamodb.NewImage.pills.N, numberOfPermutations);
+    } catch (e) {
+      console.log(e);
+    }
 
-  // All processing finished, end this Lambda execution with a success status:
-  if (processed) return callback(null); 
-  
+    // End execution when all async operations complete:
+    if (updateTaskStatus && completeTask && cached) return callback(null, 'Success!');
+
+  } else {
+    return callback(null, 'Skipping non-insert event!');
+  }
+
   /**
    * Recursively calculates the total number of permutations for a given `numberOfPills` value.    
    *
