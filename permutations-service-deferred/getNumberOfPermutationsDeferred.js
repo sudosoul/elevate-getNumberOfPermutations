@@ -47,7 +47,7 @@ exports.handler = async function(event, context, callback) {
       }
       
       // Calculate the Permutations (NOTE: This is an event blocking operation):
-      const numberOfPermutations = getNumberOfPermutations(record.dynamodb.Keys.pills.N, 0);
+      const numberOfPermutations = getNumberOfPermutations(record.dynamodb.NewImage.pills.N, 0);
       
       // Async Update the task status to 'COMPLETE' & insert the calculated permutations:
       try {
@@ -58,7 +58,7 @@ exports.handler = async function(event, context, callback) {
       
       // Async Save the calculated permutations to cache:
       try {
-        const cached = await saveToCache(record.dynamodb.Keys.pills.N, numberOfPermutations);
+        const cached = await saveToCache(record.dynamodb.NewImage.pills.N, numberOfPermutations);
       } catch (e) {
         console.log(e);
       }
