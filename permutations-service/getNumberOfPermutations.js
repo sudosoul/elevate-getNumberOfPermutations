@@ -60,10 +60,8 @@ exports.handler = async function(event, context, callback) {
   }
 
   //** Cache Miss :: Calculate Permutations **//
-  if (event.queryStringParameters.pills <= 43) {
-    console.log('Pills = ', event.queryStringParameters.pills)
+  if (event.queryStringParameters.pills < 40) {
     const numberOfPermutations = getNumberOfPermutations(event.queryStringParameters.pills); 
-    console.log("permutations = ", numberOfPermutations);
     callback(null, prepareResponse(200, {success: true, status: 'complete', permutations: numberOfPermutations})); // Send the response now, but proceed with saving to cache below..
     try {
       const cached = await saveToCache(event.queryStringParameters.pills, numberOfPermutations);

@@ -123,7 +123,6 @@ exports.handler = async function(event, context, callback) {
    */
   async function updateTask(id, status, permutations) {
     return new Promise((resolve, reject) => {
-      const id = UUID();
       Request({
         url     : process.env.deferUrl +'/' +id,
         method  : 'PUT',
