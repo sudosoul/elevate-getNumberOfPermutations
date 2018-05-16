@@ -63,7 +63,7 @@ exports.handler = async function(event, context, callback) {
         console.log(e);
       }
     }
-  });
+  }));
   
   /**
    * Recursively calculates the total number of permutations for a given `numberOfPills` value.    

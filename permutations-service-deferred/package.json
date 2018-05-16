@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/mullinsr/elevate-getNumberOfPermutations/issues"
   },
-  "homepage": "https://github.com/mullinsr/elevate-getNumberOfPermutations#readme"
+  "homepage": "https://github.com/mullinsr/elevate-getNumberOfPermutations#readme",
+  "dependencies": {
+    "request": "^2.86.0"
+  }
 }

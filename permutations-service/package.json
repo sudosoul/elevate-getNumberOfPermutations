@@ -17,7 +17,6 @@
   },
   "homepage": "https://github.com/mullinsr/elevate-getNumberOfPermutations#readme",
   "dependencies": {
-    "dynamodb": "^1.1.1",
     "request": "^2.86.0",
     "uuid": "^3.2.1"
   }
