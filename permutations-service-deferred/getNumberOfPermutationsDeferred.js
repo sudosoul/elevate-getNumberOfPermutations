@@ -36,7 +36,7 @@ exports.handler = async function(event, context, callback) {
   if (!process.env.deferUrl) return callback('Error: The `deferUrl` environment variable was not set');
 
   //** Async Iterate through DynamoDB Events **//
-  await Promise.all(event.Records.map(async (record) => {  // This allows us to perform the below code in parallel for each iteration of Records, while waiting for each async iteration to complete before the Lambda automatically exits (due to event loop being empty).
+  const processed = await Promise.all(event.Records.map(async (record) => {  // This allows us to perform the below code in parallel for each iteration of Records, while waiting for each async iteration to complete before the Lambda automatically exits (due to event loop being empty).
     // Only process INSERT events on the Dynamo Table, since new jobs are INSERT events, while updates to existing jobs are MODIFY events...
     if (record.eventName === 'INSERT') {
       // Async Update the task status to 'IN_PROGRESS':
@@ -64,6 +64,9 @@ exports.handler = async function(event, context, callback) {
       }
     }
   }));
+
+  // All processing finished, end this Lambda execution with a success status:
+  if (processed) return callback(null); 
   
   /**
    * Recursively calculates the total number of permutations for a given `numberOfPills` value.    
