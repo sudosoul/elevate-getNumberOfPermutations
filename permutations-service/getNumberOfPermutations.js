@@ -41,12 +41,14 @@ const maxPillsPerDay = 2;
  */
 exports.handler = async function(event, context, callback) {
   // Ensure Required Environment Variables Set:
-  if (!process.env.cacheUrl) return callback('Error: The `cacheUrl` environment variable was not set', prepareResponse(500, {success: false, message: 'Internal Error!'}));
-  if (!process.env.deferUrl) return callback('Error: The `deferUrl` environment variable was not set', prepareResponse(500, {success: false, message: 'Internal Error!'}));
+  if (!process.env.cacheUrl) return callback('Error: The `cacheUrl` environment variable was not set');
+  if (!process.env.deferUrl) return callback('Error: The `deferUrl` environment variable was not set');
 
   // Validate `pills` QueryString Param:
+  if (!event.queryStringParameters)                          return callback(null, prepareResponse(400, {success: false, message: 'You must provide the `pills` querystring parameter!'}));
   if (!event.queryStringParameters.pills)                    return callback(null, prepareResponse(400, {success: false, message: 'You must provide the `pills` querystring parameter!'}));
-  if (typeof event.queryStringParameters.pills !== 'number') return callback(null, prepareResponse(400, {success: false, message: 'Pills must be a valid number!'}));
+  if (typeof event.queryStringParameters.pills !== 'number') event.queryStringParameters.pills = parseInt(event.queryStringParameters.pills); // This should always happen, since API GW proxy integration passes all QS as strings.
+  if (Number.isNaN(event.queryStringParameters.pills))       return callback(null, prepareResponse(400, {success: false, message: 'Pills must be a valid number!'}));
   if (event.queryStringParameters.pills < 1 || event.queryStringParameters.pills > 47) return callback(null, prepareResponse(400, {success: false, message: 'Pills must be a number between 1 and !'}));
   
   //** Check if value exists in cache **//
@@ -59,7 +61,9 @@ exports.handler = async function(event, context, callback) {
 
   //** Cache Miss :: Calculate Permutations **//
   if (event.queryStringParameters.pills <= 43) {
+    console.log('Pills = ', event.queryStringParameters.pills)
     const numberOfPermutations = getNumberOfPermutations(event.queryStringParameters.pills); 
+    console.log("permutations = ", numberOfPermutations);
     callback(null, prepareResponse(200, {success: true, status: 'complete', permutations: numberOfPermutations})); // Send the response now, but proceed with saving to cache below..
     try {
       const cached = await saveToCache(event.queryStringParameters.pills, numberOfPermutations);
@@ -95,7 +99,7 @@ exports.handler = async function(event, context, callback) {
       if (sum > numberOfPills)   return false;
       if (sum === numberOfPills) return numberOfPermutations++;
       for (let i = minPillsPerDay; i <= maxPillsPerDay; i++) { 
-        findPermutations(numberOfPills, sum+i);
+        findPermutations(sum+i);
       }
     }
     findPermutations(0);
@@ -107,7 +111,7 @@ exports.handler = async function(event, context, callback) {
    *
    * @param    {int} numberOfPills    - The total number of pills, also the cache key.
    * @return   {Promise.<int,string>}            
-   * @resolves {int}                  - The number of permutations if found in cache, otherwise 0.
+   * @resolves {int|bool}             - The number of permutations if found in cache, otherwise false.
    * @rejects  {string}               - An error message if the request failed.
    */
   async function getFromCache(numberOfPills) {
@@ -123,7 +127,7 @@ exports.handler = async function(event, context, callback) {
         try {
           body = JSON.parse(body);
           if (body.permutations)  resolve(body.permutations);
-          else resolve(0);
+          else resolve(false);
         } catch (e) {
           reject('Error: Error parsing response from cache - ' +e);
         }
@@ -146,7 +150,7 @@ exports.handler = async function(event, context, callback) {
         url     : process.env.cacheUrl,
         method  : 'POST',
         body    : {pills: numberOfPills.toString(), permutations: numberOfPermutations.toString()}, // Even though these values are defined as Numbers in Dynamo, we have to pass them as a string in the request body for the API GW -> Dynamo proxy mapping to work.
-        headers : {'Content-Type': 'application/json'}
+        json    : true
       }, (err, res, body) => {
         if (err) return reject('Error: Internal Error Making POST Request to Cache Service - ' +err);
         if (res.statusCode !== 200) return reject('Error: POST Request to Cache Service failed - ' +res);
@@ -170,7 +174,7 @@ exports.handler = async function(event, context, callback) {
         url     : process.env.deferUrl +'/' +id,
         method  : 'POST',
         body    : {pills: numberOfPills.toString()}, // Even though these values are defined as Numbers in Dynamo, we have to pass them as a string in the request body for the API GW -> Dynamo proxy mapping to work.
-        headers : {'Content-Type': 'application/json'}
+        json    : true
       }, (err, res, body) => {
         if (err) return reject('Error: Internal Error Making POST Request to Defer Service - ' +err);
         if (res.statusCode !== 200) return reject('Error: POST Request to Defer Service Failed - ' +res);

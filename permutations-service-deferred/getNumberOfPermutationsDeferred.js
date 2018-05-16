@@ -80,7 +80,7 @@ exports.handler = async function(event, context, callback) {
       if (sum > numberOfPills)   return false;
       if (sum === numberOfPills) return numberOfPermutations++;
       for (let i = minPillsPerDay; i <= maxPillsPerDay; i++) { 
-        findPermutations(numberOfPills, sum+i);
+        findPermutations(sum+i);
       }
     }
     findPermutations(0);
@@ -102,7 +102,7 @@ exports.handler = async function(event, context, callback) {
         url     : process.env.cacheUrl,
         method  : 'POST',
         body    : {pills: numberOfPills.toString(), permutations: numberOfPermutations.toString()}, // Even though these values are defined as Numbers in Dynamo, we have to pass them as a string in the request body for the API GW -> Dynamo proxy mapping to work.
-        headers : {'Content-Type': 'application/json'}
+        json    : true
       }, (err, res, body) => {
         if (err) return reject('Error: Internal Error Making POST Request to Cache Service - ' +err);
         if (res.statusCode !== 200) return reject('Error: POST Request to Cache Service failed - ' +res);
@@ -128,7 +128,7 @@ exports.handler = async function(event, context, callback) {
         url     : process.env.deferUrl +'/' +id,
         method  : 'PUT',
         body    : {status: status, permutations: permutations ? permutations.toString() : '0'},
-        headers : {'Content-Type': 'application/json'}
+        json    : true
       }, (err, res, body) => {
         if (err) return reject('Error: Internal Error Making POST Request to Defer Service - ' +err);
         if (res.statusCode !== 200) return reject('Error: POST Request to Defer Service Failed - ' +res);
