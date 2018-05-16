@@ -106,25 +106,28 @@ exports.handler = async function(event, context, callback) {
    * Checks cache to see if permutations has already been determined for given # of pills
    *
    * @param    {int} numberOfPills    - The total number of pills, also the cache key.
-   * @throws   {Error}                - If request to cache fails. 
-   * @return   {int||null}            - The number of permutations if found in cache, otherwise null.
+   * @return   {Promise.<int,string>}            
+   * @resolves {int}                  - The number of permutations if found in cache, otherwise 0.
+   * @rejects  {string}               - An error message if the request failed.
    */
   async function getFromCache(numberOfPills) {
-    Request({
-      url     : process.env.cacheUrl,
-      method  : 'GET',
-      qs      : {pills: numberOfPills},
-      headers : {'Content-Type': 'application/json'}
-    }, (err, res, body) => {
-      if (err) throw new Error('Error: Internal Error Making GET Request to Cache Service - ' +err);
-      if (res.statusCode !== 200) throw new Error('Error: GET Request to Cache Service failed - ' +res);
-      try {
-        body = JSON.parse(body);
-        if (body.permutations) return body.permutations;
-        else return 0;
-      } catch (e) {
-        throw new Error('Error: Error parsing response from cache - ' +e);
-      }
+    return new Promise((resolve, reject) => {
+      Request({
+        url     : process.env.cacheUrl,
+        method  : 'GET',
+        qs      : {pills: numberOfPills},
+        headers : {'Content-Type': 'application/json'}
+      }, (err, res, body) => {
+        if (err) return reject('Error: Internal Error Making GET Request to Cache Service - ' +err);
+        if (res.statusCode !== 200) return reject('Error: GET Request to Cache Service failed - ' +res);
+        try {
+          body = JSON.parse(body);
+          if (body.permutations)  resolve(body.permutations);
+          else resolve(0);
+        } catch (e) {
+          reject('Error: Error parsing response from cache - ' +e);
+        }
+      });
     });
   }
 
@@ -133,40 +136,46 @@ exports.handler = async function(event, context, callback) {
    *
    * @param    {int} numberOfPills        - The total number of pills, also the cache key
    * @param    {int} numberOfPermutations - The total number of permutations for the total pills, also the cache value.
-   * @throws   {Error}                    - If request to cache fails. 
-   * @return   {bool}                     - True on successful save. 
+   * @return   {Promise.<bool,string>}                     
+   * @resolves {bool}                     - True on successful save. 
+   * @rejects  {string}                   - An error message if the request failed.
    */
   async function saveToCache(numberOfPills, numberOfPermutations) {
-    Request({
-      url     : process.env.cacheUrl,
-      method  : 'POST',
-      body    : {pills: numberOfPills.toString(), permutations: numberOfPermutations.toString()}, // Even though these values are defined as Numbers in Dynamo, we have to pass them as a string in the request body for the API GW -> Dynamo proxy mapping to work.
-      headers : {'Content-Type': 'application/json'}
-    }, (err, res, body) => {
-      if (err) throw new Error('Error: Internal Error Making POST Request to Cache Service - ' +err);
-      if (res.statusCode !== 200) throw new Error('Error: POST Request to Cache Service failed - ' +res);
-      return true;
+    return new Promise((resolve, reject) => {
+      Request({
+        url     : process.env.cacheUrl,
+        method  : 'POST',
+        body    : {pills: numberOfPills.toString(), permutations: numberOfPermutations.toString()}, // Even though these values are defined as Numbers in Dynamo, we have to pass them as a string in the request body for the API GW -> Dynamo proxy mapping to work.
+        headers : {'Content-Type': 'application/json'}
+      }, (err, res, body) => {
+        if (err) return reject('Error: Internal Error Making POST Request to Cache Service - ' +err);
+        if (res.statusCode !== 200) return reject('Error: POST Request to Cache Service failed - ' +res);
+        return resolve(true);
+      });
     });
   }
 
   /**
    * Defers the calculation to the deferred task service, via POST request.
    *
-   * @param    {int} numberOfPills - The total number of pills to calculate permutations for. 
-   * @throws   {Error}             - If request to deferTask service fails. 
-   * @return   {string}            - The unique ID for this deferred task. 
+   * @param    {int} numberOfPills      - The total number of pills to calculate permutations for. 
+   * @return   {Promise.<string>}            
+   * @resolves {string}                 - The unique ID for this deferred task. 
+   * @rejects  {string}                 - An error message if the request failed.
    */
   async function deferTask(numberOfPills) {
-    const id = UUID();
-    Request({
-      url     : process.env.deferUrl +'/' +id,
-      method  : 'POST',
-      body    : {pills: numberOfPills.toString()}, // Even though these values are defined as Numbers in Dynamo, we have to pass them as a string in the request body for the API GW -> Dynamo proxy mapping to work.
-      headers : {'Content-Type': 'application/json'}
-    }, (err, res, body) => {
-      if (err) throw new Error('Error: Internal Error Making POST Request to Defer Service - ' +err);
-      if (res.statusCode !== 200) throw new Error('Error: POST Request to Defer Service Failed - ' +res);
-      return id; // Return deferred job/task ID
+    return new Promise((resolve, reject) => {
+      const id = UUID();
+      Request({
+        url     : process.env.deferUrl +'/' +id,
+        method  : 'POST',
+        body    : {pills: numberOfPills.toString()}, // Even though these values are defined as Numbers in Dynamo, we have to pass them as a string in the request body for the API GW -> Dynamo proxy mapping to work.
+        headers : {'Content-Type': 'application/json'}
+      }, (err, res, body) => {
+        if (err) return reject('Error: Internal Error Making POST Request to Defer Service - ' +err);
+        if (res.statusCode !== 200) return reject('Error: POST Request to Defer Service Failed - ' +res);
+        return resolve(id); // Return deferred job/task ID
+      });
     });
   }
 

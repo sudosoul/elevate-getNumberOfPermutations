@@ -92,42 +92,48 @@ exports.handler = async function(event, context, callback) {
    *
    * @param    {int} numberOfPills        - The total number of pills, also the cache key
    * @param    {int} numberOfPermutations - The total number of permutations for the total pills, also the cache value.
-   * @throws   {Error}                    - If request to cache fails. 
-   * @return   {bool}                     - True on successful save. 
+   * @return   {Promise.<bool,string>}                     
+   * @resolves {bool}                     - True on successful save. 
+   * @rejects  {string}                   - An error message if the request failed.
    */
   async function saveToCache(numberOfPills, numberOfPermutations) {
-    Request({
-      url     : process.env.cacheUrl,
-      method  : 'POST',
-      body    : {pills: numberOfPills.toString(), permutations: numberOfPermutations.toString()}, // Even though these values are defined as Numbers in Dynamo, we have to pass them as a string in the request body for the API GW -> Dynamo proxy mapping to work.
-      headers : {'Content-Type': 'application/json'}
-    }, (err, res, body) => {
-      if (err) throw new Error('Error: Internal Error Making POST Request to Cache Service - ' +err);
-      if (res.statusCode !== 200) throw new Error('Error: POST Request to Cache Service failed - ' +res);
-      return true;
+    return new Promise((resolve, reject) => {
+      Request({
+        url     : process.env.cacheUrl,
+        method  : 'POST',
+        body    : {pills: numberOfPills.toString(), permutations: numberOfPermutations.toString()}, // Even though these values are defined as Numbers in Dynamo, we have to pass them as a string in the request body for the API GW -> Dynamo proxy mapping to work.
+        headers : {'Content-Type': 'application/json'}
+      }, (err, res, body) => {
+        if (err) return reject('Error: Internal Error Making POST Request to Cache Service - ' +err);
+        if (res.statusCode !== 200) return reject('Error: POST Request to Cache Service failed - ' +res);
+        return resolve(true);
+      });
     });
   }
 
   /**
    * Updates the task in the deferred tasks table. 
    *
-   * @param    {string} id           - The unique task ID.
-   * @param    {string} status       - The task status.
-   * @param    {int}    permutations - The calculated permutations, or null if job still in progress. 
-   * @throws   {Error}               - If request to update deferred service fails. 
-   * @return   {bool}                - True on sucess.
+   * @param    {string} id             - The unique task ID.
+   * @param    {string} status         - The task status.
+   * @param    {int}    permutations   - The calculated permutations, or null if job still in progress. 
+   * @return   {Promise.<bool,string>}                     
+   * @resolves {bool}                  - True on successful save. 
+   * @rejects  {string}                - An error message if the request failed.
    */
   async function updateTask(id, status, permutations) {
-    const id = UUID();
-    Request({
-      url     : process.env.deferUrl +'/' +id,
-      method  : 'PUT',
-      body    : {status: status, permutations: permutations ? permutations.toString() : '0'},
-      headers : {'Content-Type': 'application/json'}
-    }, (err, res, body) => {
-      if (err) throw new Error('Error: Internal Error Making POST Request to Defer Service - ' +err);
-      if (res.statusCode !== 200) throw new Error('Error: POST Request to Defer Service Failed - ' +res);
-      return true; 
+    return new Promise((resolve, reject) => {
+      const id = UUID();
+      Request({
+        url     : process.env.deferUrl +'/' +id,
+        method  : 'PUT',
+        body    : {status: status, permutations: permutations ? permutations.toString() : '0'},
+        headers : {'Content-Type': 'application/json'}
+      }, (err, res, body) => {
+        if (err) return reject('Error: Internal Error Making POST Request to Defer Service - ' +err);
+        if (res.statusCode !== 200) return reject('Error: POST Request to Defer Service Failed - ' +res);
+        return resolve(true); 
+      });
     });
   }
 
