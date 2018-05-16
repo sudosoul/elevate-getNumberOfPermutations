@@ -48,13 +48,10 @@ exports.handler = async function(event, context, callback) {
   if (!event.queryStringParameters.pills)                    return callback(null, prepareResponse(400, {success: false, message: 'You must provide the `pills` querystring parameter!'}));
   if (typeof event.queryStringParameters.pills !== 'number') return callback(null, prepareResponse(400, {success: false, message: 'Pills must be a valid number!'}));
   if (event.queryStringParameters.pills < 1 || event.queryStringParameters.pills > 47) return callback(null, prepareResponse(400, {success: false, message: 'Pills must be a number between 1 and !'}));
-
-  // Global to hold # of permutations:
-  let numberOfPermutations = 0; 
   
   //** Check if value exists in cache **//
   try {
-    numberOfPermutations = await getFromCache(event.queryStringParameters.pills);
+    const numberOfPermutations = await getFromCache(event.queryStringParameters.pills);
     if (numberOfPermutations) return callback(null, prepareResponse(200, {success: true, status: 'complete', permutations: numberOfPermutations})); // Cache hit, send response.
   } catch (e) {
     console.log(e); // Cache check failed, program proceeds below...
@@ -62,10 +59,10 @@ exports.handler = async function(event, context, callback) {
 
   //** Cache Miss :: Calculate Permutations **//
   if (event.queryStringParameters.pills <= 43) {
-    getNumberOfPermutations(event.queryStringParameters.pills, 0); 
+    const numberOfPermutations = getNumberOfPermutations(event.queryStringParameters.pills); 
     callback(null, prepareResponse(200, {success: true, status: 'complete', permutations: numberOfPermutations})); // Send the response now, but proceed with saving to cache below..
     try {
-      const saved = await saveToCache(event.queryStringParameters.pills, numberOfPermutations);
+      const cached = await saveToCache(event.queryStringParameters.pills, numberOfPermutations);
     } catch (e) {
       console.log(e); 
     }
@@ -90,15 +87,19 @@ exports.handler = async function(event, context, callback) {
    * Recursively calculates the total number of permutations for a given `numberOfPills` value.    
    *
    * @param    {int} numberOfPills - The number of pills to calculate permutations for.
-   * @param    {int} sum           - The recursively determined sum, incremented until it equals the `numberOfPills`.
-   * @return   VOID                - Increments a global value `numberOfPermutations`.
+   * @return   {int}               - The total number of permutations. 
    */
-  function getNumberOfPermutations(numberOfPills, sum) {
-    if (sum > numberOfPills)   return false;
-    if (sum === numberOfPills) return numberOfPermutations++;
-    for (let i = minPillsPerDay; i <= maxPillsPerDay; i++) { 
-      getNumberOfPermutations(numberOfPills, sum+i);
+  function getNumberOfPermutations(numberOfPills) {
+    let numberOfPermutations = 0;
+    function findPermutations(sum) {
+      if (sum > numberOfPills)   return false;
+      if (sum === numberOfPills) return numberOfPermutations++;
+      for (let i = minPillsPerDay; i <= maxPillsPerDay; i++) { 
+        findPermutations(numberOfPills, sum+i);
+      }
     }
+    findPermutations(0);
+    return numberOfPermutations;
   }
 
   /**
