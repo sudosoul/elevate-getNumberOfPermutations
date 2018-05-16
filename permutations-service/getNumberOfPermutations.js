@@ -8,7 +8,7 @@
  * If the value is not found in cache, this service will on-demand compute
  * the value for all number of pills inclusively between 0 - 43. 
  *
- * For total pills > 43, due to an API GW hard timeout of 30 seconds, 
+ * For total pills > 40, due to an API GW hard timeout of 30 seconds, 
  * this service will defer the request, and respond back with information
  * on the deferred task and details on how to access the response when available.
  *
