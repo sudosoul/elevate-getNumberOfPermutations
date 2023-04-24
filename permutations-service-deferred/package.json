@@ -17,6 +17,6 @@
   },
   "homepage": "https://github.com/mullinsr/elevate-getNumberOfPermutations#readme",
   "dependencies": {
-    "request": "^2.86.0"
+    "request": "^2.88.2"
   }
 }
